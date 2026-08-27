@@ -87,3 +87,10 @@ Direct installs through `bunx sim-skills` install the selected skills without th
 - `knowledge-base` — ingest and index documents, configure connectors and tags, and verify retrieval.
 
 The skills assume the `sim` CLI is installed and authenticated. They never store or print API keys.
+
+## Publishing
+
+Every push to `main` publishes a new stable `sim-skills` version to npm. The release workflow uses
+the manifest version for the first release or an explicitly higher release, and otherwise increments
+the highest published stable patch version. The repository must provide an `NPM_TOKEN` Actions
+secret with permission to publish `sim-skills`.
