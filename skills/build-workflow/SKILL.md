@@ -8,6 +8,10 @@ description: Create or modify Sim workflows through the sim CLI. Use when transl
 Build the smallest valid graph that satisfies the request, using the Sim CLI as the source of truth
 for available resources and accepted shapes.
 
+A request that is one action against one connected service needs no graph at all — call the tool
+directly with `sim tools execute` (see the `run-tool` skill). Build a workflow when the task needs
+more than one call, branching, or a schedule.
+
 ## Establish context
 
 - Use the profile the user named. If none was named, inspect configured profiles and current context;

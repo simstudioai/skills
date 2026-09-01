@@ -14,6 +14,7 @@ const expectedSkillNames = [
 	"build-workflow",
 	"deploy-workflow",
 	"knowledge-base",
+	"run-tool",
 	"run-workflow",
 	"table",
 ] as const;
