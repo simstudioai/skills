@@ -25,16 +25,24 @@ from:
 - `user-only` — you supply it, but pass a reference instead of the secret: `{{VAR_NAME}}` as the
   whole value, resolved server-side. List the available names with
   `sim --output json secrets list`; values are never returned. Any other value is sent verbatim.
-- `hidden` — Sim fills it. Never put it in `--input`.
+  One exception: a parameter named `credential` or `oauthCredential` is the credential selector,
+  not a secret — see below. It is refused in `--input`.
+- `hidden` — Sim fills it. Never put it in `--input`; it is refused.
 
 Then bind the credential by the tool's own shape:
 
-- The tool declares `oauth.required` — find the credential with
-  `sim --output json credentials list --provider-id <provider>` and pass `--credential-id`.
-  Omitting it fails with a message naming the provider.
+- The tool declares `oauth.required`, **or** declares a required `credential` or `oauthCredential`
+  parameter (Snowflake and others do the latter, with no `oauth` block) — find the credential with
+  `sim --output json credentials list --provider-id <provider>` and pass `--credential-id`. It is
+  the one place a credential is named; Sim places it where the tool expects it. Omitting it fails
+  naming `credentialId`; putting it in `--input` under any spelling is refused.
 - `hostedApiKey` is `always`, or `conditional` and this call matches — omit the key entirely; Sim
   supplies its own and bills the workspace.
 - Otherwise the tool takes its own `user-only` key parameter; pass a `{{VAR_NAME}}` reference.
+
+`--input` accepts exactly what `tools get` publishes as yours to send. An undeclared key, a
+`hidden` one, or a credential under any name is a `400` that names the offending field — read
+it rather than guessing at a spelling.
 
 ## Run and read the outcome
 
