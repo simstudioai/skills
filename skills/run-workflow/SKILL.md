@@ -52,6 +52,20 @@ workflow and contains the state the selected block needs.
 - Use `--async` only for deployed runs that should return immediately. Then wait with
   `workflows runs wait` or inspect with `workflows runs get`; do not poll without a stopping bound.
 
+## Parse CLI output defensively
+
+- `--output json` can print human notice lines to stdout above the JSON body (truncation notices,
+  for example). Strip everything before the first `[` or `{` before parsing.
+- `sim files read` visibly truncates content in its default rendering. Use `--output json` whenever
+  the full content matters.
+- `workflows state get` returns the bare `{blocks, edges, loops, parallels, variables}` object;
+  `workflows export` wraps the same state in a portable envelope. A jq filter written for one shape
+  and run against the other yields an empty document with no error - the most dangerous kind of
+  wrong. Match the filter to the command.
+- Select a profile with `SIM_PROFILE=<name>` or an explicit `-P <name>` argument. Interpolating a
+  shell variable that holds `-P <name>` passes the name with a leading space and fails with an
+  unknown-profile error.
+
 ## Diagnose failures
 
 1. Read the returned run id, status, error, and selected outputs.

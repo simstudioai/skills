@@ -16,6 +16,16 @@ Never put a live credential in the command.
 - An unversioned name resolves to the newest version visible in the workspace, and the response
   echoes the id that answered. Use that id in the call.
 
+## Parse CLI output defensively
+
+- `--output json` can print human notice lines to stdout above the JSON body (truncation notices,
+  for example). Strip everything before the first `[` or `{` before parsing.
+- `sim files read` visibly truncates content in its default rendering. Use `--output json` whenever
+  the full content matters.
+- Select a profile with `SIM_PROFILE=<name>` or an explicit `-P <name>` argument. Interpolating a
+  shell variable that holds `-P <name>` passes the name with a leading space and fails with an
+  unknown-profile error.
+
 ## Bind auth from the declaration, not from habit
 
 `tools get` labels every parameter with a `visibility`, and the label says where its value comes

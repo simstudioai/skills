@@ -51,3 +51,17 @@ ahead of the deployed version, say so.
 Undeploy only on an explicit request. Use `workflows undeploy`, `workflows chat unpublish`, or
 `workflow-mcp-servers tools delete` for the matching surface, supplying confirmation where the CLI
 requires it. Then read the matching deployment status or MCP tool list again to verify it is offline.
+
+## Parse CLI output defensively
+
+- `--output json` can print human notice lines to stdout above the JSON body (truncation notices,
+  for example). Strip everything before the first `[` or `{` before parsing.
+- `sim files read` visibly truncates content in its default rendering. Use `--output json` whenever
+  the full content matters.
+- `workflows state get` returns the bare `{blocks, edges, loops, parallels, variables}` object;
+  `workflows export` wraps the same state in a portable envelope. A jq filter written for one shape
+  and run against the other yields an empty document with no error - the most dangerous kind of
+  wrong. Match the filter to the command.
+- Select a profile with `SIM_PROFILE=<name>` or an explicit `-P <name>` argument. Interpolating a
+  shell variable that holds `-P <name>` passes the name with a leading space and fails with an
+  unknown-profile error.

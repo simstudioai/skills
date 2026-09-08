@@ -16,6 +16,16 @@ smallest requested mutation, and verify stored rows or run state afterward.
   `sim --output json tables get <tableId>` before changing its schema or data.
 - Keep the returned table id. Do not rediscover a table by name after creating it.
 
+## Parse CLI output defensively
+
+- `--output json` can print human notice lines to stdout above the JSON body (truncation notices,
+  for example). Strip everything before the first `[` or `{` before parsing.
+- `sim files read` visibly truncates content in its default rendering. Use `--output json` whenever
+  the full content matters.
+- Select a profile with `SIM_PROFILE=<name>` or an explicit `-P <name>` argument. Interpolating a
+  shell variable that holds `-P <name>` passes the name with a leading space and fails with an
+  unknown-profile error.
+
 ## Design the schema first
 
 Create a table with at least one explicit column:

@@ -17,6 +17,16 @@ query whose expected answer is present in the source material.
 - Keep ids returned by create, upload, and connector calls. Do not rediscover resources by display
   name when an exact id is available.
 
+## Parse CLI output defensively
+
+- `--output json` can print human notice lines to stdout above the JSON body (truncation notices,
+  for example). Strip everything before the first `[` or `{` before parsing.
+- `sim files read` visibly truncates content in its default rendering. Use `--output json` whenever
+  the full content matters.
+- Select a profile with `SIM_PROFILE=<name>` or an explicit `-P <name>` argument. Interpolating a
+  shell variable that holds `-P <name>` passes the name with a leading space and fails with an
+  unknown-profile error.
+
 ## Create with intentional chunking
 
 For ordinary documents, begin with the server defaults unless the user has a retrieval reason to
