@@ -73,6 +73,22 @@ sim --output json tables import ./updates.csv --table-id <tableId> --mode append
 Unless the caller deliberately chose `--no-wait`, require the import's terminal result rather than
 treating queue acceptance as completion.
 
+Three write behaviors that fail as an apparently correct write:
+
+- A row write silently drops any key the table's column schema does not define. The write succeeds,
+  reports success, and persists every other key; the undefined one disappears with no warning. When
+  a feature adds a field to an existing table, add the column first with `tables columns create` -
+  in every environment the table exists in - before any write carries the key. A write will never
+  create a column for you.
+- In workflow table blocks, the conflict column for an upsert is read from whichever mode
+  (selector or manual) is active; a value set on the inactive mode is ignored and the upsert
+  silently stops deduplicating. And because column ids are workspace-local - the same column
+  created by the same command gets a different id in each workspace - bind the conflict column by
+  its literal name in the manual field, not through the id-holding selector. This is the opposite
+  of table binding, where the selector is the portable side.
+- Design around the platform limits: tables cap at 10000 rows and queries at 1000 rows per page,
+  so a table that grows without bound needs a retention or compaction plan from day one.
+
 ## Query on the server
 
 Filter and sort with the table commands instead of fetching every row:
