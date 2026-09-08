@@ -17,6 +17,18 @@ post-deployment state.
   access configuration.
 - Never create, rotate, or reveal an API key unless the user separately asked for key management.
 
+## What a stored version is not
+
+A stored workflow version nulls out `credential`, `oauthCredential`, resource selectors, and
+related binding fields. Two consequences:
+
+- A diff against a version document is not a change report. Blocks whose only delta is a nulled
+  field show as changed, and selector changes do not show at all - the diff overstates and
+  understates simultaneously. Diff live state against live state instead.
+- A revert restores the nulled document, stripping every credential and selector in the workflow.
+  Never present revert as a safe rollback; the reverted draft needs its bindings re-established
+  before it can run.
+
 ## Choose one surface
 
 - **API:** for software calling a workflow as a pipeline. Publish with
@@ -41,6 +53,31 @@ Do not choose a surface from convenience. Ask when the intended caller does not 
   must name those real input fields, and unknown names are ignored.
 - Reuse an existing MCP server when it is the intended tool collection; do not create duplicates by
   default.
+
+## Promoting across workspaces with fork sync
+
+When a workflow moves between workspaces via a fork push, the sync has its own semantics; do not
+reason about it as a copy.
+
+- The push creates resources that are missing in the target and rebinds selector-bound references
+  to them. Do not pre-create tables in the target as a promotion prerequisite - pre-creating
+  defeats the mapping and leaves references pointing at the source.
+- A table the push creates arrives holding the source's rows. Re-seed environment-specific values,
+  feature flags and configuration especially, immediately after the push, before anything reads
+  them. Where possible design flag rows so the source's value is also the safe value in every
+  target.
+- Deployment state travels. A workflow deployed in the source is live in the target as soon as the
+  sync completes, and a schedule trigger starts firing there on its own - there is no separate
+  deploy step in the target. Before syncing anything scheduled or triggered, state plainly what
+  will start running where and when.
+- Bind every resource through its selector and leave the manual id fields empty. The push remaps
+  selectors but carries a hardcoded manual id verbatim, silently pointing the promoted workflow at
+  the source workspace's resource - and a cross-workspace read succeeds, so no error surfaces.
+- The push does not preserve a block's basic/advanced mode: some blocks arrive rebound and working,
+  others arrive carrying the source's manual id and broken, with nothing surfacing which is which.
+  "Works in the source workspace" is therefore never the completion condition. Verify each target
+  environment after promotion - run its workflows or audit its bindings - rather than inferring
+  health from the source.
 
 ## Verify and report
 
