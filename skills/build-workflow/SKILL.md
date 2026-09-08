@@ -38,8 +38,21 @@ more than one call, branching, or a schedule.
   - Use a Condition block for explicit predicates and a Router block for semantic classification.
   - Use a Loop only for iteration. Do not create graph cycles to model repetition.
   - Use Parallel only when branches are independent; keep data-dependent work sequential.
+  - Do not nest a Loop inside a Parallel. The inner loop runs exactly one iteration per parallel
+    branch, the block after it never fires, and the run reports `completed` in seconds with no
+    error. Flatten nested iteration; parallels over flat children behave correctly at scale.
+  - Reference array elements through named fields, not bracket paths. A path like
+    `<block.result.docs[0]>` fails silently; have the producer emit named slots instead.
 - Every added block must be reachable from the intended entry point and contribute to a terminal
   path. Trace downstream references before editing or deleting an existing producer.
+- The function sandbox is a bare V8 isolate providing `console`, `TextEncoder`/`TextDecoder`,
+  `setTimeout`/`setInterval`, and `fetch` - no `crypto`, no `URL`, no `require`, no Node builtins.
+  A dedupe or content key the workflow must reproduce has to be a literal composite string
+  (`subject|source|text`); a hash computed anywhere else is unreproducible in the workflow, and a
+  32-bit pure-JS hash collides too often to back a unique constraint.
+- An `api` block reports a failed call's HTTP status inside a human-readable error string, not as a
+  numeric field. A regex that scrapes it must anchor on the status position; a naive pattern will
+  match numbers inside the error page body.
 
 ## Configure Agent blocks deliberately
 
@@ -88,6 +101,14 @@ more than one call, branching, or a schedule.
 - When downstream blocks need stable typed fields, configure the Agent's catalog-declared
   structured response format. Structured fields become top-level Agent outputs; inspect the
   effective output schema before referencing them instead of assuming a `content` path.
+- Author `messages` as a native JSON array, never as a stringified one. When `messages` is a JSON
+  string, reference resolution text-substitutes multi-line values into the JSON source, the parse
+  fails, and the run silently executes with the system prompt plus a stub user message - it
+  completes, structured output validates, and the model answers that no content was provided. The
+  rule is asymmetric: `responseFormat` and a table block's `filter` must remain JSON strings, and
+  sending either as a native object drops the input.
+- A `strict: true` response format does not enforce `enum` values. When a downstream branch keys on
+  an enum field, validate it in a function block instead of trusting the schema.
 
 ## Wire Condition and Router branches semantically
 
@@ -225,6 +246,20 @@ A non-UUID `block_id` on a new block is a request-local label. Same-batch refere
 automatically; later requests must use the UUID returned in `mintedBlockIds`. Never rediscover a new
 block by matching its name. The request-local label does not become the block's variable-reference
 prefix; `params.name` does.
+
+### What a clean apply does not show
+
+- Configuration sent under `params.data` is silently discarded while `params.inputs` is written,
+  and the apply still reports clean. Put block configuration only in `params.inputs`.
+- An `add` op cannot put a block's filter input into advanced mode, so an API-created
+  `update_rows_by_filter` block ignores its `filter` at runtime while the value sits visibly in
+  state, and the run fails claiming the filter is missing. No sequence of edits repairs it. Use
+  `upsert_row` keyed on a unique column instead, and have it write the whole desired row rather
+  than one changed field.
+- `insert_into_subflow` registers the block in the loop's `nodes` array but does not wire the
+  loop's start edge to it. Without a `loop-start-source` connection the loop reports no executable
+  blocks inside while its `nodes` look correct. Add the connection in the same batch.
+- A loop's iteration source field is `collection`, whatever name the state document renders for it.
 
 ## Apply atomically, then verify
 
