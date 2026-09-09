@@ -2,7 +2,7 @@
 	"name": "sim",
 	"displayName": "Sim",
 	"version": "0.1.0",
-	"description": "Build, run, deploy, and operate Sim workflows, tables, and knowledge bases.",
+	"description": "Build, run, deploy, and sync Sim workflows; operate tables and knowledge bases.",
 	"author": {
 		"name": "Sim",
 		"url": "https://sim.ai"

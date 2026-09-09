@@ -56,28 +56,22 @@ Do not choose a surface from convenience. Ask when the intended caller does not 
 
 ## Promoting across workspaces with fork sync
 
-When a workflow moves between workspaces via a fork push, the sync has its own semantics; do not
-reason about it as a copy.
+Use the `sync-workspaces` skill for portable imports, workspace forks, and push/pull promotion.
+That flow owns mapping discovery, preview fingerprints, stable request IDs, and operation polling.
 
-- The push creates resources that are missing in the target and rebinds selector-bound references
-  to them. Do not pre-create tables in the target as a promotion prerequisite - pre-creating
-  defeats the mapping and leaves references pointing at the source.
-- A table the push creates arrives holding the source's rows. Re-seed environment-specific values,
-  feature flags and configuration especially, immediately after the push, before anything reads
-  them. Where possible design flag rows so the source's value is also the safe value in every
-  target.
-- Deployment state travels. A workflow deployed in the source is live in the target as soon as the
-  sync completes, and a schedule trigger starts firing there on its own - there is no separate
-  deploy step in the target. Before syncing anything scheduled or triggered, state plainly what
-  will start running where and when.
-- Bind every resource through its selector and leave the manual id fields empty. The push remaps
-  selectors but carries a hardcoded manual id verbatim, silently pointing the promoted workflow at
-  the source workspace's resource - and a cross-workspace read succeeds, so no error surfaces.
-- The push does not preserve a block's basic/advanced mode: some blocks arrive rebound and working,
-  others arrive carrying the source's manual id and broken, with nothing surfacing which is which.
-  "Works in the source workspace" is therefore never the completion condition. Verify each target
-  environment after promotion - run its workflows or audit its bindings - rather than inferring
-  health from the source.
+- Sync transfers deployed source versions along a direct fork edge. Push sends current → other;
+  pull receives other → current, regardless of which workspace is the child.
+- Select resource copies explicitly or map to existing authorized destination resources. Creating a
+  destination table is valid when mapping to it; sync does not automatically copy every missing
+  resource. Selected table copies include rows, so review environment-specific configuration.
+- Import and fork create drafts. Sync deploys eligible admitted snapshots after background work;
+  inspect operation and deployment readiness before declaring the target live. Schedules and
+  webhooks can begin receiving traffic when their deployment activates.
+- Registered selector references are remapped using canonical field modes. Manual values remain
+  literal; verify their intended destination instead of assuming they were rebound or that access
+  across workspaces is permitted.
+- Review trigger URL changes and required configuration. A committed operation can still need
+  configuration or have failed follow-up work; an HTTP success alone does not establish readiness.
 
 ## Verify and report
 

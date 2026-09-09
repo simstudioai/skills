@@ -73,6 +73,7 @@ Native plugin installs expose the skills under the `sim` namespace:
 - `sim:build-workflow`
 - `sim:run-workflow`
 - `sim:deploy-workflow`
+- `sim:sync-workspaces`
 - `sim:table`
 - `sim:knowledge-base`
 
@@ -83,7 +84,11 @@ Direct installs through `bunx sim-skills` install the selected skills without th
 - `build-workflow` — discover blocks and author a draft graph with atomic workflow operations.
 - `run-workflow` — test saved state, exercise triggers, resume from a block, and diagnose runs.
 - `deploy-workflow` — publish and manage workflows as APIs, chats, or MCP tools.
+- `sync-workspaces` — import portable workflows with bindings, fork workspaces, and preview, apply, and reconcile push/pull sync.
 - `table` — design typed tables, load and query rows, import data, and run workflow groups.
 - `knowledge-base` — ingest and index documents, configure connectors and tags, and verify retrieval.
 
 The skills assume the `sim` CLI is installed and authenticated. They never store or print API keys.
+
+Workspace sync guidance requires a CLI and server exposing the v2 import-preview and fork sync
+commands. The skill checks command availability before changing resources.

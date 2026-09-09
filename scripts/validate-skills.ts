@@ -16,6 +16,7 @@ const expectedSkillNames = [
 	"knowledge-base",
 	"run-tool",
 	"run-workflow",
+	"sync-workspaces",
 	"table",
 ] as const;
 const expectedPackageFiles = [
