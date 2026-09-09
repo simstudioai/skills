@@ -17,6 +17,7 @@
 		"format:check": "biome format .",
 		"test": "vitest run",
 		"check:skills": "bun run scripts/validate-skills.ts",
+		"bump:version": "bun run scripts/bump-version.ts",
 		"sync:plugin-version": "bun run scripts/sync-plugin-version.ts",
 		"prepublishOnly": "bun run check:skills && bun run test && bun run build"
 	},
