@@ -12,6 +12,10 @@ A request that is one action against one connected service needs no graph at all
 directly with `sim tools execute` (see the `run-tool` skill). Build a workflow when the task needs
 more than one call, branching, or a schedule.
 
+For an existing workflow JSON import or environment promotion, use the `sync-workspaces` skill.
+It preserves registered reference identities through preview and destination binding before graph IDs
+are regenerated; do not recreate that flow with a sequence of graph edits.
+
 ## Establish context
 
 - Use the profile the user named. If none was named, inspect configured profiles and current context;
