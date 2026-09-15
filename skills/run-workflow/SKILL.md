@@ -61,6 +61,19 @@ workflow and contains the state the selected block needs.
 4. Correct the graph with the build skill. Do not hide a deterministic failure behind retries or a
    different execution mode.
 
+## `{{KEY}}` in run output is a mask, not a failure
+
+Sim resolves the secret at execution, then masks the value out of the log-facing copy that
+`workflows runs get` and `logs get` return, writing it back as `{{KEY}}` - or `[REDACTED_SECRET]`
+when it cannot pin the value to one name. The block ran with the real value. A `--follow` stream is
+not a log copy and is not masked, so never quote one back.
+
+An unresolved name looks identical in a log, because an unknown reference passes through unchanged.
+Check the name, not the rendering: `sim --output json secrets list` returns names and an
+`unredacted` flag, so a listed name with `unredacted: false` is a mask, not a failure. Never rewrite
+a working `{{KEY}}` into `environmentVariables.KEY`, hardcode a literal, or print the value to prove
+resolution.
+
 Report which mode ran, the terminal status, and the relevant output or error. Include the run id when
 the selected execution mode returns one; `--follow` streams omit it. Never print profile credentials
 or raw secrets from block inputs.
