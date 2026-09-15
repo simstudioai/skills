@@ -92,6 +92,21 @@ Four properties of runs and run records that mislead diagnosis when unknown:
   in-workflow logs block reports the same run's cost in credits. Never compare or store the two as
   one number.
 
+## `{{KEY}}` in run output is usually a mask, not a failure
+
+Only `workflows runs get` and `logs get` return the masked copy, where a resolved secret is written
+back as `{{KEY}}` - or `[REDACTED_SECRET]` when it cannot be pinned to one name. Live run output is
+never masked: a plain run and a `--follow` stream hit the same endpoint and both carry real values,
+so never quote either back.
+
+So a `{{KEY}}` in a masked log is usually a resolved secret rather than a broken reference - but it
+is not proof. An unresolved name survives too: JavaScript and Python leave it literal, shell
+resolves it to the empty string, and a secret shorter than 8 characters is never masked at all, so
+its `{{KEY}}` is always unresolved. `sim --output json secrets list` proves only that a name exists,
+not that it resolved in this run. When a block behaves as though the credential were literal text,
+check the spelling there first - but never "fix" a working reference by rewriting it into
+`environmentVariables.KEY` or hardcoding a literal.
+
 Report which mode ran, the terminal status, and the relevant output or error. Include the run id when
 the selected execution mode returns one; `--follow` streams omit it. Never print profile credentials
 or raw secrets from block inputs.
