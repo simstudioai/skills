@@ -92,18 +92,20 @@ Four properties of runs and run records that mislead diagnosis when unknown:
   in-workflow logs block reports the same run's cost in credits. Never compare or store the two as
   one number.
 
-## `{{KEY}}` in run output is a mask, not a failure
+## `{{KEY}}` in run output is usually a mask, not a failure
 
-Sim resolves the secret at execution, then masks the value out of the log-facing copy that
-`workflows runs get` and `logs get` return, writing it back as `{{KEY}}` - or `[REDACTED_SECRET]`
-when it cannot pin the value to one name. The block ran with the real value. A `--follow` stream is
-not a log copy and is not masked, so never quote one back.
+Only `workflows runs get` and `logs get` return the masked copy, where a resolved secret is written
+back as `{{KEY}}` - or `[REDACTED_SECRET]` when it cannot be pinned to one name. Live run output is
+never masked: a plain run and a `--follow` stream hit the same endpoint and both carry real values,
+so never quote either back.
 
-An unresolved name looks identical in a log, because an unknown reference passes through unchanged.
-Check the name, not the rendering: `sim --output json secrets list` returns names and an
-`unredacted` flag, so a listed name with `unredacted: false` is a mask, not a failure. Never rewrite
-a working `{{KEY}}` into `environmentVariables.KEY`, hardcode a literal, or print the value to prove
-resolution.
+So a `{{KEY}}` in a masked log is usually a resolved secret rather than a broken reference - but it
+is not proof. An unresolved name survives too: JavaScript and Python leave it literal, shell
+resolves it to the empty string, and a secret shorter than 8 characters is never masked at all, so
+its `{{KEY}}` is always unresolved. `sim --output json secrets list` proves only that a name exists,
+not that it resolved in this run. When a block behaves as though the credential were literal text,
+check the spelling there first - but never "fix" a working reference by rewriting it into
+`environmentVariables.KEY` or hardcoding a literal.
 
 Report which mode ran, the terminal status, and the relevant output or error. Include the run id when
 the selected execution mode returns one; `--follow` streams omit it. Never print profile credentials
