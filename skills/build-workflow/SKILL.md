@@ -12,6 +12,10 @@ A request that is one action against one connected service needs no graph at all
 directly with `sim tools execute` (see the `run-tool` skill). Build a workflow when the task needs
 more than one call, branching, or a schedule.
 
+For an existing workflow JSON import or environment promotion, use the `sync-workspaces` skill.
+It preserves registered reference identities through preview and destination binding before graph IDs
+are regenerated; do not recreate that flow with a sequence of graph edits.
+
 ## Establish context
 
 - Use the profile the user named. If none was named, inspect configured profiles and current context;
@@ -114,10 +118,15 @@ more than one call, branching, or a schedule.
 - Prefer plain alphanumeric camelCase names for new blocks, such as `awsAlert`, `parseInput`, and
   `step1`. This keeps the stored name readable and the reference prefix predictable. Do not use the
   reserved normalized names `loop`, `parallel`, or `variable`, and do not create names that collide
-  after normalization.
+  after normalization. Punctuation in a name is a live hazard rather than a style preference: a
+  block renamed to `getP&L` left `<getP&L.contents>` unresolved and passed through as literal text,
+  with the lint reporting nothing.
 - The field path after the prefix comes from the upstream block's effective output schema and is
   case-sensitive. Function block return values are under `result`, so use `<parseinput.result>` or
   `<parseinput.result.field>` only when the catalog declares that shape.
+- A tag resolves anywhere in a Function block's `code`, comments and docstrings included, and one
+  that does not resolve fails the block. Describe a field in prose rather than writing tag-shaped
+  example text beside the code that uses it.
 - Before applying a batch, enumerate every `<block.field>` reference in its inputs. Verify the
   normalized prefix against the exact upstream block name in workflow state, verify the field path
   against the catalog output schema, and verify the source is reachable upstream. A clean workflow
@@ -139,6 +148,35 @@ more than one call, branching, or a schedule.
   trigger configuration id for a block id.
 - Select models, operations, and modes from the returned schema. Do not guess an id from a label or
   reuse an id from another integration.
+
+## Bind a resource through its selector field
+
+A resource input is usually exposed twice under one `canonicalParamId`: a basic-mode selector such
+as `tableSelector`, `writeFolderPath`, or `workflowId`, and an advanced-mode manual twin such as
+`manualTableId`, `manualWriteFolderPath`, or `manualWorkflowId`. Only the active member of the pair
+is read at execution; a value sitting on the other member is inert.
+
+- **Try the selector with the dynamic value first.** Advanced does not mean "the member that takes
+  a reference". On the File block's write operation the `writeFolderPath` selector resolves a folder
+  path, including its percent-encoded form, while `manualWriteFolderPath` fails for every value, so
+  a block-output reference belongs in the selector there. Read the pair out of
+  `blocks get <blockId>` instead of inferring which member is dynamic from its mode.
+- **Naming a member selects the mode.** An edit sets the pair's mode from the input keys it names
+  rather than from their values, and an edit naming both members resolves to the advanced one. So
+  `{"manualTableId": null}` on a selector-bound block does not clear inert residue: it flips the
+  block to advanced with an empty id, and the next run fails on a missing required field.
+- **Move a block off its manual member in two operations, never combined.** First
+  `{"manualTableId": ""}` to empty the manual value, then `{"tableSelector": "<id>"}` to bind the
+  selector and return the pair to basic mode. That order leaves the manual member empty, so a later
+  flip back to advanced fails loudly instead of silently reading whatever id was left behind.
+- **Leave the manual member empty in a graph that will be copied into another workspace.** A copy
+  remaps a bound selector but carries a manual id verbatim, silently repointing the copy at the
+  source workspace's resource.
+- **An edit merges inputs rather than replacing them.** Fields an edit does not name keep their
+  previous values, so a block configured over several edits can still carry a stale value on the
+  member that is no longer active. Read state afterwards and confirm the active member holds the
+  value and its twin is empty. A value stranded on the inactive member is reported among the apply
+  lint's field issues while the apply itself still reports success.
 
 ## Author one semantic batch
 

@@ -48,3 +48,4 @@ jobs:
           test -f "$PACKAGE_DIR/package/.codex-plugin/plugin.json"
           test -f "$PACKAGE_DIR/package/.claude-plugin/plugin.json"
           test -f "$PACKAGE_DIR/package/skills/build-workflow/SKILL.md"
+          test -f "$PACKAGE_DIR/package/skills/sync-workspaces/SKILL.md"

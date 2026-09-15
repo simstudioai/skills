@@ -17,6 +17,18 @@ post-deployment state.
   access configuration.
 - Never create, rotate, or reveal an API key unless the user separately asked for key management.
 
+## What a stored version is not
+
+A stored workflow version nulls out `credential`, `oauthCredential`, resource selectors, and
+related binding fields. Two consequences:
+
+- A diff against a version document is not a change report. Blocks whose only delta is a nulled
+  field show as changed, and selector changes do not show at all - the diff overstates and
+  understates simultaneously. Diff live state against live state instead.
+- A revert restores the nulled document, stripping every credential and selector in the workflow.
+  Never present revert as a safe rollback; the reverted draft needs its bindings re-established
+  before it can run.
+
 ## Choose one surface
 
 - **API:** for software calling a workflow as a pipeline. Publish with
@@ -41,6 +53,25 @@ Do not choose a surface from convenience. Ask when the intended caller does not 
   must name those real input fields, and unknown names are ignored.
 - Reuse an existing MCP server when it is the intended tool collection; do not create duplicates by
   default.
+
+## Promoting across workspaces with fork sync
+
+Use the `sync-workspaces` skill for portable imports, workspace forks, and push/pull promotion.
+That flow owns mapping discovery, preview fingerprints, stable request IDs, and operation polling.
+
+- Sync transfers deployed source versions along a direct fork edge. Push sends current → other;
+  pull receives other → current, regardless of which workspace is the child.
+- Select resource copies explicitly or map to existing authorized destination resources. Creating a
+  destination table is valid when mapping to it; sync does not automatically copy every missing
+  resource. Selected table copies include rows, so review environment-specific configuration.
+- Import and fork create drafts. Sync deploys eligible admitted snapshots after background work;
+  inspect operation and deployment readiness before declaring the target live. Schedules and
+  webhooks can begin receiving traffic when their deployment activates.
+- Registered selector references are remapped using canonical field modes. Manual values remain
+  literal; verify their intended destination instead of assuming they were rebound or that access
+  across workspaces is permitted.
+- Review trigger URL changes and required configuration. A committed operation can still need
+  configuration or have failed follow-up work; an HTTP success alone does not establish readiness.
 
 ## Verify and report
 
