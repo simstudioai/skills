@@ -13,6 +13,7 @@ const pluginName = "sim";
 const expectedSkillNames = [
 	"build-workflow",
 	"deploy-workflow",
+	"files",
 	"knowledge-base",
 	"run-tool",
 	"run-workflow",
