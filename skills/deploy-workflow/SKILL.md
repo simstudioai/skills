@@ -13,6 +13,9 @@ post-deployment state.
 - Read the draft and current deployment before changing anything.
 - Confirm the draft has no required-field lint issues or unresolved credentials and has completed an
   appropriate manual run.
+- Check prior edit responses for skipped operations and dropped inputs, then reread the saved draft
+  to verify the intended blocks, connections, and enabled states. Deployment does not establish
+  that earlier edits succeeded or that temporary test changes were restored.
 - If a live deployment already exists, explain whether this publishes a newer draft or changes its
   access configuration.
 - Never create, rotate, or reveal an API key unless the user separately asked for key management.

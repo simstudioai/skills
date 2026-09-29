@@ -24,6 +24,9 @@ are regenerated; do not recreate that flow with a sequence of graph edits.
   asked for a new workflow.
 - Read an existing draft with `sim --output json workflows state get <workflowId>` before editing it.
   Preserve blocks, edges, variables, and deployment state outside the requested change.
+- State reads preserve configuration for editing and can contain secrets. Keep that state private;
+  `workflows export` is a sanitized portable representation that clears credentials and, by default,
+  workspace resource bindings. Use state reads for in-place edits.
 - If the workflow is locked or read-only, stop instead of attempting an alternate mutation path.
 
 ## Design before encoding
@@ -139,10 +142,15 @@ are regenerated; do not recreate that flow with a sequence of graph edits.
   `sim --output json blocks get <blockId>`.
 - Use the returned block id, operation ids, input ids, modes, conditions, credential fields, and
   outputs exactly. Never invent them from a display name or underlying tool id.
+- Preserve an existing block's saved type/version when editing; an unversioned catalog lookup can
+  resolve a newer definition.
 - Inspect `tools list` or `tools get` only when the block response points to a tool and its parameter
   or output contract is needed.
 - Resolve credentials and resource identifiers before writing them into a graph. Do not embed raw
   secrets in an operations file.
+- In Function code, use the supported `{{KEY}}` secret references (JavaScript:
+  `const key = {{KEY}};`) within the configured secret scope. Do not assume workspace secrets appear
+  in `process.env`, or widen selected-secret access to work around a missing reference.
 - Discover trigger behavior from the catalog. A service trigger may be an integration block with
   trigger mode enabled, while a built-in trigger may have its own block type; never substitute a
   trigger configuration id for a block id.
@@ -231,6 +239,10 @@ block by matching its name. The request-local label does not become the block's 
 prefix; `params.name` does.
 
 ## Apply atomically, then verify
+
+Use `--dry-run --atomic` to validate a proposed batch when needed. Validation executes no blocks
+and does not suppress writes during a later run. Dry-run `previewBlockIds` are provisional; later
+requests must use the committed response's `mintedBlockIds`.
 
 Pass the batch as inline JSON on the first attempt and apply it once with atomic behavior. Do not
 create a staging file preemptively:
