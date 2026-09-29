@@ -44,19 +44,18 @@ sim --output json workflows run <workflowId> \
 Do not guess a source run or synthesize upstream outputs. Confirm that the source run belongs to the
 workflow and contains the state the selected block needs.
 
-## Runs longer than about a minute
+## Long runs and uncertain responses
 
-A manual run holds its HTTP connection open for the entire execution, and `--manual` refuses
-`--async`. On hosted deployments the fronting load balancer drops idle connections after roughly a
-minute (observed; re-verify on the current deployment), and a dropped connection cancels the run.
-The failure surfaces as a transport error such as `Could not reach <origin>: fetch failed`, not as
-a timeout, so it reads like network flakiness. It is not: retrying the same synchronous run fails
-the same way, and a sequence of such attempts corrupts the evidence - a deterministic workflow
-starts looking nondeterministic because most of its recorded attempts are transport casualties.
+Current CLI and server versions use heartbeat responses for ordinary synchronous runs, including
+`--manual`. A long-running draft does not require deployment. Use `--follow` when live progress
+helps; it does not make execution asynchronous. For an intended deployed run, use `--async` and
+`workflows runs wait <runId> --workflow <workflowId> --wait-timeout 3600`, or another explicit bound.
 
-When a workflow can plausibly exceed a minute, deploy it and run `--async`, then wait with
-`workflows runs wait` or poll `workflows runs get` with a stopping bound. Reserve synchronous
-manual runs for graphs that finish quickly.
+After a timeout or connection loss, inspect the known run before starting another execution;
+external actions may already have occurred. Ordinary runs without `--follow` accept `--run-id`
+to choose the identifier before sending. It is not an idempotency key: a claimed ID conflicts
+rather than replaying the result, and a missing run record does not prove nothing executed.
+Do not automatically retry with a fresh or omitted ID.
 
 ## Keep output focused
 
@@ -65,6 +64,9 @@ manual runs for graphs that finish quickly.
   when the user needs those diagnostics.
 - Use `--async` only for deployed runs that should return immediately. Then wait with
   `workflows runs wait` or inspect with `workflows runs get`; do not poll without a stopping bound.
+- Check `sim logs get --help` before using optional diagnostic flags. When it lists
+  `--no-include-workflow-state`, use that flag to omit the saved graph from a log read. The trace
+  still loads; use selected-output reads when only particular results matter.
 
 ## Diagnose failures
 
@@ -74,6 +76,11 @@ manual runs for graphs that finish quickly.
 3. Read the workflow state and confirm the failing block's current inputs and connections.
 4. Correct the graph with the build skill. Do not hide a deterministic failure behind retries or a
    different execution mode.
+
+Request acceptance, workflow completion, and successful tool results are different outcomes.
+A workflow can complete after handling a failed tool call. Inspect nested tool errors and the
+actual output before concluding that research or delivery succeeded; an absent trace is not proof
+of success.
 
 Four properties of runs and run records that mislead diagnosis when unknown:
 

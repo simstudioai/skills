@@ -15,6 +15,9 @@ Never put a live credential in the command.
   `sim --output json tools get <toolId>`. Never guess a tool id or a parameter name.
 - An unversioned name resolves to the newest version visible in the workspace, and the response
   echoes the id that answered. Use that id in the call.
+- Use a Function block for code requiring workflow execution context. An executor-delegation
+  error from `function_execute` is not a missing user credential; do not invent internal context
+  fields or change authentication to bypass it.
 
 ## Bind auth from the declaration, not from habit
 
@@ -40,6 +43,10 @@ Then bind the credential by the tool's own shape:
   supplies its own and bills the workspace.
 - Otherwise the tool takes its own `user-only` key parameter; pass a `{{VAR_NAME}}` reference.
 
+Your Sim login governs platform access; the selected provider credential determines the external
+identity. A different OAuth connection can act as a different bot or user. Do not substitute one
+to bypass an ownership error or a mismatch between advertised and accepted authentication modes.
+
 `--input` accepts exactly what `tools get` publishes as yours to send. An undeclared key, a
 `hidden` one, or a credential under any name is a `400` that names the offending field — read
 it rather than guessing at a spelling.
@@ -53,10 +60,14 @@ sim --output json tools execute <toolId> --credential-id <id> --input '{"...": "
 `--input` also accepts `@path` or `@-`, which is how a payload too large or too awkward to quote
 reaches the command.
 
-A tool that ran and refused exits non-zero with `status: "failed"` and the reason in `error.message`:
-the call reached the service and the service declined. Report that reason. A `403` carrying
+A tool result with `status: "failed"` exits non-zero and reports its reason in `error.message`.
+Read that reason to distinguish execution setup failure from a provider refusal; the status alone
+does not prove the service received the request. A `403` carrying
 `error.details.code` `INTEGRATION_NOT_ALLOWED` is a workspace policy decision, not a fixable
 argument — say so and stop.
+
+Tool results follow the provider's pagination contract. When more pages remain, use the published
+cursor before reporting a total; the CLI's resource-list pagination does not paginate tool results.
 
 ## Invariants
 
