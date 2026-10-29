@@ -142,8 +142,11 @@ are regenerated; do not recreate that flow with a sequence of graph edits.
   `sim --output json blocks get <blockId>`.
 - Use the returned block id, operation ids, input ids, modes, conditions, credential fields, and
   outputs exactly. Never invent them from a display name or underlying tool id.
+- Remembered block ids are often the legacy version (`table` instead of `table_v2`, `router`
+  instead of `router_v2`). A block whose `blocks get` detail carries `sunset` only keeps existing
+  workflows running: never add one or switch a block to one; build with its `sunset.replacedBy`.
 - Preserve an existing block's saved type/version when editing; an unversioned catalog lookup can
-  resolve a newer definition.
+  resolve a newer definition. If it carries `sunset`, name its `replacedBy` to the user.
 - Inspect `tools list` or `tools get` only when the block response points to a tool and its parameter
   or output contract is needed.
 - Resolve credentials and resource identifiers before writing them into a graph. Do not embed raw
