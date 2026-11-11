@@ -12,7 +12,8 @@ than treating request acceptance as success.
 
 - Use `sim --output json workflows run <workflowId>` to run the active deployment.
 - Add `--manual` to run the current saved draft without deploying it. Manual execution and
-  run-from-block require a personal API-key profile; a workspace API key is not permitted.
+  run-from-block need an OAuth login or personal API key with write access; a workspace key is
+  refused, and a read-only key gets `403` with `READ_ONLY_API_KEY` on any run.
 - Do not deploy a draft merely to test it.
 
 A workflow does not need a Start block for a plain manual run:
@@ -44,17 +45,30 @@ sim --output json workflows run <workflowId> \
 Do not guess a source run or synthesize upstream outputs. Confirm that the source run belongs to the
 workflow and contains the state the selected block needs.
 
+`--stop-after <blockId>` ends the run after that block and fails it if the path skips the block.
+With `--from-block` on the same block, it re-runs only that block.
+
 ## Long runs and uncertain responses
 
-Current CLI and server versions use heartbeat responses for ordinary synchronous runs, including
-`--manual`. A long-running draft does not require deployment. Use `--follow` when live progress
-helps; it does not make execution asynchronous. For an intended deployed run, use `--async` and
-`workflows runs wait <runId> --workflow <workflowId> --wait-timeout 3600`, or another explicit bound.
+A long-running draft does not require deployment. Bound a long synchronous run, manual or
+deployed, with `--wait-timeout <seconds>`: if the run is still going it continues in the
+background, the CLI prints its run record and exits 4, and
+`workflows runs wait <runId> --workflow <workflowId>` keeps waiting. `--wait-timeout` cannot be
+combined with `--async` or `--follow`, and `--execution-timeout-seconds` requires one of
+`--async` or `--wait-timeout`. Use `--follow` when live progress helps; it does not make execution
+asynchronous.
+
+`runs wait` exits 0 completed, 1 failed, 2 cancelled, 3 needs input, 4 timed out (default bound
+3600 seconds). On 3, read `workflows runs get`: `paused.points[]` carries each pause's `contextId`,
+then `workflows runs resume <runId> --workflow <workflowId> --context <contextId> --input @input.json`.
+`workflows runs list --workflow <workflowId> --status <status>` finds earlier runs;
+`workflows runs cancel` stops one, and a cancelled paused run cannot be resumed.
 
 After a timeout or connection loss, inspect the known run before starting another execution;
 external actions may already have occurred. Ordinary runs without `--follow` accept `--run-id`
-to choose the identifier before sending. It is not an idempotency key: a claimed ID conflicts
-rather than replaying the result, and a missing run record does not prove nothing executed.
+to choose the identifier before sending. It is not an idempotency key: a claimed ID fails with
+`409` `RUN_ID_CONFLICT` rather than replaying the result, and a missing run record does not prove
+nothing executed.
 Do not automatically retry with a fresh or omitted ID.
 
 ## Keep output focused
@@ -84,13 +98,13 @@ of success.
 
 Four properties of runs and run records that mislead diagnosis when unknown:
 
-- A run record has a lifecycle. `logs get` returns NOT_FOUND for a run that is still in flight and
-  for one that was cancelled, and a completed run can report a `redacting` status for a minute or
-  two before its content is readable. Poll with a bounded retry before concluding the run vanished.
-- Firing a run immediately after `workflows deploy` reports the new version active can still
-  execute the previous deployment, silently. When a run exists to verify a deploy, confirm the
-  executed behavior from its outputs rather than trusting the deploy response, and re-run if the
-  outputs match the old version.
+- A run record has a lifecycle. `logs get` returns NOT_FOUND until the run has a log row, which a
+  queued run does not yet have, and a completed run can report a `redacting` status for a minute or
+  two before its content is readable. Use `workflows runs get` for lifecycle state, and poll with a
+  bounded retry before concluding the run vanished.
+- Deployment is asynchronous: `workflows deploy` accepts an attempt while the older version stays
+  live. Poll `workflows deployment status` until `latestDeploymentAttempt` names the new version
+  with status `active` before running to verify it, then confirm the behavior from the outputs.
 - Run traces nest: a child workflow's blocks appear inside its parent span, not at the top level.
   Reading only the top level of the span tree silently drops every block a child workflow ran,
   which can be most of the run. Walk the tree recursively before counting blocks or hunting the

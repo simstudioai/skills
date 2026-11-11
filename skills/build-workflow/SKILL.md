@@ -20,6 +20,9 @@ are regenerated; do not recreate that flow with a sequence of graph edits.
 
 - Use the profile the user named. If none was named, inspect configured profiles and current context;
   do not silently switch accounts, workspaces, or API origins.
+- Graph edits need an OAuth login or personal API key with write access. `sim --output json meta
+  status` reports the credential's `keyType`, `scopes`, and `expiresAt`; a read-only key (only
+  `api:read`) is refused every mutation with `READ_ONLY_API_KEY`.
 - Find the intended workflow with `sim --output json workflows list`. Create one only when the user
   asked for a new workflow.
 - Read an existing draft with `sim --output json workflows state get <workflowId>` before editing it.
@@ -85,7 +88,9 @@ are regenerated; do not recreate that flow with a sequence of graph edits.
 
 - Put only workflow-author-fixed values in a tool's `params`; omit arguments the model should
   choose. Omit `usageControl` or use `auto` when the model may decide, `force` when every Agent run
-  must call it, and `none` to disable it.
+  must call it, and `none` to disable it. To decide per run, set `usageControlExpression` instead
+  (a reference such as `<start.toolMode>` resolving to `auto`, `force`, or `none`); send one of the
+  two, never both.
 - Resolve custom-tool ids with `custom-tools list` and `custom-tools get`. Resolve MCP server and
   tool names with `mcp-servers list` and `mcp-servers tools list <serverId>`. New custom tools should
   use `customToolId`; preserve an existing legacy inline declaration but do not create another.
@@ -132,9 +137,15 @@ are regenerated; do not recreate that flow with a sequence of graph edits.
   example text beside the code that uses it.
 - Before applying a batch, enumerate every `<block.field>` reference in its inputs. Verify the
   normalized prefix against the exact upstream block name in workflow state, verify the field path
-  against the catalog output schema, and verify the source is reachable upstream. A clean workflow
-  operations lint does not prove block-output references resolve; its `unresolvedReferences` report
-  covers resource-like references such as credentials, tools, and skills.
+  against the catalog output schema, and verify the source is reachable upstream.
+- Lint `unresolvedReferences` with kind `block-output` catches a reference to a block that does not
+  exist, an unknown top-level output field (`unknown-field`), an undeclared path below an MCP
+  block's `structuredContent`, and a text output written unquoted in a JSON field
+  (`unquoted-json-string`; build that JSON in a Function block instead). A clean lint proves nothing
+  else: it does not check reachability, nested paths on other blocks, references into trigger or
+  trigger-mode blocks, loop/parallel/table outputs, an Agent whose `responseFormat` does not parse,
+  blocks that declare no outputs, `loop.`/`parallel.`/`variable.` references, or tokens that do not
+  look like `name.path` (the `getP&L` case above).
 
 ## Discover before composing
 
@@ -247,6 +258,10 @@ Use `--dry-run --atomic` to validate a proposed batch when needed. Validation ex
 and does not suppress writes during a later run. Dry-run `previewBlockIds` are provisional; later
 requests must use the committed response's `mintedBlockIds`.
 
+Enable or disable blocks with `--set-block-enabled '[{"block_id":"<uuid>","enabled":false}]'`,
+applied after `--operations`; disabling a loop or parallel cascades to its unlocked children.
+`--layout none` keeps supplied positions; the default `targeted` repositions the touched subgraph.
+
 Pass the batch as inline JSON on the first attempt and apply it once with atomic behavior. Do not
 create a staging file preemptively:
 
@@ -261,8 +276,10 @@ passed to the CLI.
 
 If the atomic apply is refused, fix the batch rather than retrying a partial or guessed alternative.
 Read the state again and verify the requested blocks, inputs, and edges. Treat skipped operations,
-dropped inputs, unresolved references, and required-field lint issues as failures to correct. Report
-minted ids and any other advisory lint that remains. Confirm that changed references resolve, every
+dropped inputs, unresolved references, required-field lint issues, and `tableFieldIssues` (a Table
+filter or sort naming no column) as failures to correct. `manualRunIssue` describes only the
+editor's Run button; API runs do not apply it. Report minted ids and any other advisory lint that
+remains. Confirm that changed references resolve, every
 branch reaches the intended destination, nested blocks remain in the correct loop or parallel scope,
 and no block was orphaned by a replaced connection set. Recompute reference prefixes from the
 persisted block names; do not infer them from request-local labels or reformat them as snake_case.
@@ -273,6 +290,6 @@ a clickable link. Do not construct a workflow URL from ids or the profile's API 
 
 When the request includes a working or tested workflow and execution is safe, use the run skill to
 manually test the saved draft with realistic input. Judge the returned values, not only the terminal
-status, and fix then rerun when behavior is wrong. Manual runs require a personal API-key profile;
-do not deploy merely to test. Do not execute a workflow whose external side effects have not been
+status, and fix then rerun when behavior is wrong. Manual runs need an OAuth login or personal API
+key with write access, never a workspace key; do not deploy merely to test. Do not execute a workflow whose external side effects have not been
 authorized.

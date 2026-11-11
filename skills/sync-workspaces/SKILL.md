@@ -18,6 +18,8 @@ operation; sync also requires target deployment readiness. Imports and forks com
 - Fork creation requires source admin. Sync and mapping changes require admin on both workspaces.
   Fork administration accepts personal API keys or OAuth, not workspace keys. Imports retain their
   existing workflow-write permissions; credential binding still requires an eligible acting user.
+- Previews count as writes: OAuth needs `api:write`, and a read-only API key is refused even for
+  a preview. Check `sim --output json meta status` (`keyType`, `scopes`) before starting.
 - Inspect `workspaces fork-availability` before forking. Enterprise/self-hosting and workspace
   creation policies still apply. OAuth scopes and permission groups can further restrict access.
 - Use `--output json`. Single-resource CLI results are unwrapped objects; paged results contain
@@ -151,8 +153,10 @@ sim --profile destination --workspace "$DESTINATION_WORKSPACE" --output json \
 
 Use `--yes` within the user's authorized destructive sync scope. Review replacements, exclusions,
 resource selections, required configuration, and trigger URL changes before apply. If preview offers
-trigger adoption choices, use its stable source workflow/block identities and offered paths; never
-invent a path. Sync `ready` indicates commit readiness, not a live deployment. Scheduled or webhook
+trigger adoption choices in `triggerSlots`, pass them with `--trigger-mappings` entries of
+`{sourceWorkflowId, sourceBlockId, adoptPath}` using only offered paths; never invent a path.
+`--drop-references` acknowledges removal of references whose source was deleted; live references
+cannot be dropped. Sync `ready` indicates commit readiness, not a live deployment. Scheduled or webhook
 workflows can begin receiving traffic once admitted deployments activate.
 
 ## Completion and recovery
@@ -176,6 +180,8 @@ workflows can begin receiving traffic once admitted deployments activate.
 - Rollback restores the latest target sync from prior deployed versions. It does not recover
   arbitrary prior drafts or remove every copied resource. Use rollback/unlink/exclusion controls
   only for the requested recovery scope and verify their result.
+
+`workspaces members update` and `members remove` exist; use them only on an explicit request.
 
 For a new imported draft, use the `run-workflow` skill to test it and `deploy-workflow` only when
 publication is requested. Never copy secret values, signed URLs, arbitrary headers, or opaque

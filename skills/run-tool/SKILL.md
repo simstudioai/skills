@@ -10,8 +10,10 @@ Never put a live credential in the command.
 
 ## Preflight
 
-- `tools execute` requires a personal API-key profile; a workspace API key is refused.
-- Find the tool with `sim --output json tools list --search <term>`, then read it with
+- `tools execute` needs an OAuth login or personal API key and workspace write access. A workspace
+  key is refused, and a read-only key gets `403` with `READ_ONLY_API_KEY`.
+- Find the tool with `sim --output json tools list --search <term>` (narrow with
+  `--oauth-provider <provider>` or `--hosted-api-key always|conditional|none`), then read it with
   `sim --output json tools get <toolId>`. Never guess a tool id or a parameter name.
 - An unversioned name resolves to the newest version visible in the workspace, and the response
   echoes the id that answered. Use that id in the call.
@@ -24,7 +26,7 @@ Never put a live credential in the command.
 `tools get` labels every parameter with a `visibility`, and the label says where its value comes
 from:
 
-- `user-or-llm` — you supply it in `--input`.
+- `user-or-llm` or `llm-only` — you supply it in `--input`.
 - `user-only` — you supply it, but pass a reference instead of the secret: `{{VAR_NAME}}` as the
   whole value, resolved server-side. List the available names with
   `sim --output json secrets list`; values are never returned. Any other value is sent verbatim.
@@ -58,13 +60,16 @@ sim --output json tools execute <toolId> --credential-id <id> --input '{"...": "
 ```
 
 `--input` also accepts `@path` or `@-`, which is how a payload too large or too awkward to quote
-reaches the command.
+reaches the command. `--timeout <seconds>` bounds the wait (default 120, max 300). A timeout does
+not cancel the third-party side effect; treat the outcome as unknown and check the service before
+any retry.
 
 A tool result with `status: "failed"` exits non-zero and reports its reason in `error.message`.
 Read that reason to distinguish execution setup failure from a provider refusal; the status alone
 does not prove the service received the request. A `403` carrying
 `error.details.code` `INTEGRATION_NOT_ALLOWED` is a workspace policy decision, not a fixable
-argument — say so and stop.
+argument — say so and stop. A `402` `USAGE_LIMIT_EXCEEDED` means a Sim-hosted key hit the
+workspace's usage limit; report it rather than switching credentials.
 
 Tool results follow the provider's pagination contract. When more pages remain, use the published
 cursor before reporting a total; the CLI's resource-list pagination does not paginate tool results.

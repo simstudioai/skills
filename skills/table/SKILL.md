@@ -62,6 +62,10 @@ known row. Use `tables upsert <tableId> --on email --data @row.json` only agains
 An upsert's update branch **replaces the complete row** and clears omitted columns, so always send
 the complete desired row.
 
+For many rows: `tables rows update-each` applies a distinct patch per listed row,
+`tables rows batch-update --filter` patches every matching row, and `tables rows batch-delete`
+deletes matching or listed rows. The last two cannot be undone; count the filter's matches first.
+
 For CSV input, prefer the import command over parsing client-side:
 
 ```bash
@@ -71,7 +75,11 @@ sim --output json tables import ./updates.csv --table-id <tableId> --mode append
 
 `--mode replace` is destructive for an existing table. Use it only when explicitly requested.
 Unless the caller deliberately chose `--no-wait`, require the import's terminal result rather than
-treating queue acceptance as completion.
+treating queue acceptance as completion. `tables imports cancel` keeps rows already written;
+re-importing after a cancelled append duplicates them.
+
+Saved views live under `tables views`. A deleted table is archived; `tables restore <tableId>`
+recovers it.
 
 ## Query on the server
 
@@ -87,8 +95,10 @@ sim --output json tables rows query <tableId> \
 Use `tables rows count` when only a count is needed and `tables rows search` for a
 case-insensitive substring across cells. A negating filter may include null or absent values; add
 an explicit `isNotNull` or `isNotEmpty` condition when nulls must be excluded. Avoid `--limit 0` on
-an unbounded table. Request `--include-run-state` only when workflow-group diagnostics are needed;
-it is incompatible with `--limit 0` and caps a page at 200 rows.
+an unbounded table; for a full pull use `tables exports create <tableId> --format csv|json`, then
+`exports get` until finished and `exports download`. Request `--include-run-state` only when
+workflow-group diagnostics are needed; it caps a page at 200 rows (the CLI still pages under
+`--limit 0`) and a page over 2 MiB of run state returns `413`.
 
 ## Connect a workflow or enrichment
 
@@ -101,10 +111,17 @@ columns:
   "type": "manual",
   "workflowId": "<workflowId>",
   "name": "Score contacts",
+  "deploymentMode": "deployed",
+  "autoRun": false,
   "inputMappings": [{ "inputName": "email", "columnName": "email" }],
   "outputs": [{ "blockId": "<blockId>", "path": "score", "columnName": "score" }]
 }
 ```
+
+Always set `autoRun` and `deploymentMode` in the group body. A group without `autoRun` defaults to
+`true` and fires a metered run for every later row whose inputs fill. A group without
+`deploymentMode` runs the active deployment (`deployed`) and refuses while the workflow is
+undeployed; `live` runs the editable draft.
 
 Create the group with both files:
 
@@ -115,10 +132,15 @@ sim --output json tables groups create <tableId> \
   --no-auto-run
 ```
 
-`output-columns.json` is an array of typed column definitions. Group creation defaults to not
-scheduling existing rows; opt into `--auto-run` only when the user intends that metered fan-out.
-Afterward, use the group id returned by the API with the explicit row or batch dispatch command and
-inspect dispatch and row run state until terminal.
+`output-columns.json` is an array of typed column definitions; an entry naming an existing column
+attaches it. The `--auto-run` flag only decides whether existing rows are scheduled now (default
+no); it does not set the group's `autoRun`. Opt in only when the user intends that metered fan-out.
+
+Run explicitly with `tables dispatches create <tableId> --group-ids <id>`, narrowing with
+`--run-mode incomplete`, `--row-ids`, `--filter`, or `--max-rows`; use `tables rows enrich` for one
+row. Inspect `dispatches get` and row run state (`tables enrichment get` for one cell group) until
+terminal. `dispatches cancel` stops dispatching, but cells already queued keep running; stop those
+with `tables cancel-runs <tableId> --scope all|row --yes`. Change a group with `tables groups update`.
 
 ## Verify and report
 
