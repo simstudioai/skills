@@ -1,8 +1,8 @@
 {
 	"name": "sim",
 	"displayName": "Sim",
-	"version": "0.1.0",
-	"description": "Build, run, deploy, and sync Sim workflows; operate tables and knowledge bases.",
+	"version": "0.1.1",
+	"description": "Build, run, deploy, and sync Sim workflows; operate tables, knowledge bases, and workspace files; call integration tools directly.",
 	"author": {
 		"name": "Sim",
 		"url": "https://sim.ai"
@@ -10,6 +10,14 @@
 	"homepage": "https://docs.sim.ai",
 	"repository": "https://github.com/simstudioai/skills",
 	"license": "Apache-2.0",
-	"keywords": ["sim", "workflows", "automation", "tables", "knowledge-bases"],
+	"keywords": [
+		"sim",
+		"workflows",
+		"automation",
+		"tables",
+		"knowledge-bases",
+		"files",
+		"integrations"
+	],
 	"skills": "./skills/"
 }

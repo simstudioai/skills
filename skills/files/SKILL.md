@@ -46,6 +46,10 @@ sim --output json files search \
 Use `--mode exact` for literal text and `--no-include-subfolders` when only the selected folders
 should be searched. Do not fetch every file and search locally when the server-side query suffices.
 
+`files search` returns at most `--max-results` lines (default 50); `truncated: true` means more
+exist. No match proves absence only when `complete` is true and `indexStatus.skippedFiles` and
+`indexStatus.partialFiles` are both zero; otherwise report the result as inconclusive.
+
 ## Create and organize deliberately
 
 Upload a local file or create textual content directly:
@@ -61,6 +65,9 @@ folder atomically with `files folders move <path> <destination>`. Move known fil
 
 File names are leaf names, not paths. Use `files rename <fileId> --name <name>` to change one and
 `files move` to change its folder. Do not place path separators or dot segments in a file name.
+
+`files copy --source <json> --destination <json>` copies files or folders. `files unzip <fileId>
+--yes` writes every archive entry into the workspace, so confirm the destination first.
 
 ## Read before editing
 
@@ -131,18 +138,25 @@ Delete from the start anchor through the line before the retained end anchor:
 ```
 
 Use `files set-content` only when complete replacement is intentional. A targeted edit preserves
-unrelated content and reduces stale-read overwrites. If an edit is rejected because the source
-changed concurrently, read the current file and recompute the edit; do not replay the stale write.
+unrelated content and reduces stale-read overwrites. Pass `--expected-revision` with the
+`revision` from `files describe` (each write returns the new one) so a concurrent change answers
+`409` instead of being overwritten. On `409`, read the current file and recompute the edit; do not
+replay the stale write.
+
+File content is versioned. `files versions list`, `versions read`, and `versions download`
+inspect history; `files versions revert <fileId> <version> --expected-revision <rev>` is the undo
+path. `files versions delete` permanently removes a version; use it only on explicit request.
 
 ## Treat deletion and sharing as explicit effects
 
-File and folder deletion requires `--yes` and is soft-delete where the surface supports restore.
-Use `files list --scope archived` or `files folders list --scope archived` to find deleted items,
-then restore by exact file id or folder path. A recursive folder delete affects descendants, so use
+File and folder deletion requires `--yes` and is soft-delete where the surface supports restore;
+`files batch-delete <ids...> --yes` archives several files. Use `files list --scope archived` or
+`files folders list --scope archived` to find deleted items (`files describe <fileId> --scope
+archived` reads one), then restore by exact file id or folder path. A recursive folder delete affects descendants, so use
 it only when the requested scope is clear.
 
-Before changing a share, inspect it with `files share get <fileId>`. `files share set` requires a
-personal API-key profile. Do not expose share passwords, profile credentials, or unrelated file
+Before changing a share, inspect it with `files share get <fileId>`. `files share set` requires an OAuth
+login or personal API key; a workspace key is refused. Do not expose share passwords, profile credentials, or unrelated file
 content in output.
 
 ## Verify and report

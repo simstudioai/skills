@@ -52,13 +52,22 @@ than guessing slot meanings.
 For files already stored in the workspace, use `knowledge from-workspace-files create` so the
 server reads the canonical file. For a continuously changing external source, use a connector:
 
-1. Run `sim --output json connector-types list` and select an exact `connectorType`.
+1. Run `sim --output json connector-types list --detail full` and select an exact
+   `connectorType`; the default summary omits the config schema.
 2. Read its returned `auth` mode and `configFields`. Build `sourceConfig` using each field's id or
    `canonicalParamId`, honoring `required`, `dependsOn`, and `multi`.
-3. Supply an existing OAuth `credentialId` or the required API key without writing the secret to a
-   committed file or output.
-4. Create it with `knowledge connectors create`, then start an explicit sync with
-   `knowledge connectors sync` when needed.
+3. Supply an existing OAuth `credentialId`, or `--api-key '{{SECRET_NAME}}'` as a whole-value
+   secret reference (`$SECRET_NAME` is sent literally). Never write the secret to a committed file
+   or output.
+4. Create it with `knowledge connectors create` (`--sync-interval-minutes` defaults to 1440; `0`
+   disables scheduled syncs), then start an explicit sync with `knowledge connectors sync` when
+   needed.
+
+`knowledge connectors update --status paused|active` pauses or resumes a connector; a new
+`--source-config` on a runnable connector queues a sync. `knowledge connectors documents update
+--operation exclude|restore` hides or brings back individual synced documents.
+`knowledge connectors delete --delete-documents` permanently deletes everything it synced; use it
+only on explicit request.
 
 Never invent provider-specific `sourceConfig`. Do not use `--rehydrate` unless the user intends to
 re-fetch and re-index every existing connector document.
@@ -76,6 +85,8 @@ For an exact item, use `knowledge documents get <knowledgeBaseId> <documentId>`.
 searchable only when it is enabled and `processingStatus` is `completed`. Treat `pending` and
 `processing` as nonterminal, and `failed` as a real failure. Use `documents update --retry-processing`
 alone only for a failed or stuck document; do not combine that flag with metadata changes.
+`knowledge documents batch-update --operation enable|disable` toggles several documents' search
+eligibility.
 
 For connectors, inspect `knowledge connectors list` and `knowledge connectors documents list` to
 distinguish connector sync state from individual document processing. Poll with a bounded stopping
@@ -95,6 +106,17 @@ Search and document-list filters use the tag's display name, not its storage slo
 
 All filters in one request must match. A missing tag name or inconsistent definition across selected
 knowledge bases is an error, never an ignored filter.
+
+`knowledge tags usage` shows which definitions documents still carry. `knowledge tags cleanup`
+removes only unused definitions by default; `--no-unused` deletes every definition and clears its
+values on every document and chunk, irreversibly. Never pass it without an explicit request.
+
+Edit chunk content directly with `knowledge chunks create`, `chunks update`, or
+`chunks batch-update --operation enable|disable|delete` (delete is permanent).
+
+To copy a knowledge base, `knowledge export <id>` writes a bundle and `knowledge import <path>`
+creates a new knowledge base from it; `--no-vectors` shrinks the bundle and makes the import
+re-embed every chunk.
 
 ## Verify retrieval
 
