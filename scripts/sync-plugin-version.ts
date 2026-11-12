@@ -21,15 +21,38 @@ async function readJsonObject(path: string): Promise<Record<string, unknown>> {
 	return parsed;
 }
 
-export async function syncPluginVersion(
-	packageRoot = defaultPackageRoot,
-): Promise<string> {
+async function readPackageVersion(packageRoot: string): Promise<string> {
 	const packageManifestPath = resolve(packageRoot, "package.json");
 	const packageManifest = await readJsonObject(packageManifestPath);
 	const version = packageManifest.version;
 	if (typeof version !== "string" || !version) {
 		throw new Error(`${packageManifestPath}: version is required`);
 	}
+	return version;
+}
+
+/** Lists each plugin manifest whose version differs from package.json's. */
+export async function findPluginVersionDrift(
+	packageRoot = defaultPackageRoot,
+): Promise<string[]> {
+	const version = await readPackageVersion(packageRoot);
+	const drift = await Promise.all(
+		pluginManifestPaths.map(async (relativePath) => {
+			const manifest = await readJsonObject(resolve(packageRoot, relativePath));
+			return manifest.version === version
+				? []
+				: [
+						`${relativePath} version ${String(manifest.version)} does not match package.json ${version}`,
+					];
+		}),
+	);
+	return drift.flat();
+}
+
+export async function syncPluginVersion(
+	packageRoot = defaultPackageRoot,
+): Promise<string> {
+	const version = await readPackageVersion(packageRoot);
 
 	await Promise.all(
 		pluginManifestPaths.map(async (relativePath) => {
@@ -44,6 +67,17 @@ export async function syncPluginVersion(
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-	const version = await syncPluginVersion();
-	process.stdout.write(`Synchronized Sim plugin manifests to ${version}.\n`);
+	if (process.argv.includes("--check")) {
+		const drift = await findPluginVersionDrift();
+		if (drift.length > 0) {
+			process.stderr.write(
+				`${drift.join("\n")}\nRun bun run sync:plugin-version.\n`,
+			);
+			process.exit(1);
+		}
+		process.stdout.write("Sim plugin manifest versions match package.json.\n");
+	} else {
+		const version = await syncPluginVersion();
+		process.stdout.write(`Synchronized Sim plugin manifests to ${version}.\n`);
+	}
 }
