@@ -2,7 +2,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { syncPluginVersion } from "./sync-plugin-version";
+import {
+	findPluginVersionDrift,
+	syncPluginVersion,
+} from "./sync-plugin-version";
 
 describe("syncPluginVersion", () => {
 	const temporaryDirectories: string[] = [];
@@ -70,5 +73,35 @@ describe("syncPluginVersion", () => {
 		);
 
 		await expect(syncPluginVersion(packageRoot)).rejects.toThrow("plugin.json");
+	});
+
+	it("reports only the plugin manifest whose version drifted", async () => {
+		const packageRoot = await mkdtemp(resolve(tmpdir(), "sim-skills-version-"));
+		temporaryDirectories.push(packageRoot);
+		await Promise.all([
+			mkdir(resolve(packageRoot, ".codex-plugin")),
+			mkdir(resolve(packageRoot, ".claude-plugin")),
+		]);
+		await Promise.all([
+			writeFile(
+				resolve(packageRoot, "package.json"),
+				JSON.stringify({ name: "sim-skills", version: "0.2.0" }),
+			),
+			writeFile(
+				resolve(packageRoot, ".codex-plugin", "plugin.json"),
+				JSON.stringify({ name: "sim", version: "0.2.0" }),
+			),
+			writeFile(
+				resolve(packageRoot, ".claude-plugin", "plugin.json"),
+				JSON.stringify({ name: "sim", version: "0.1.1" }),
+			),
+		]);
+
+		const drift = await findPluginVersionDrift(packageRoot);
+		expect(drift).toHaveLength(1);
+		expect(drift[0]).toContain(".claude-plugin/plugin.json version 0.1.1");
+
+		await syncPluginVersion(packageRoot);
+		await expect(findPluginVersionDrift(packageRoot)).resolves.toEqual([]);
 	});
 });

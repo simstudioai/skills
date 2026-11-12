@@ -21,7 +21,8 @@ bunx skills add simstudioai/skills \
   --yes
 ```
 
-Once published, the npm package provides a shorter interactive installer:
+The [`sim-skills`](https://www.npmjs.com/package/sim-skills) npm package wraps the same installer
+with the Sim skills preselected:
 
 ```bash
 bunx sim-skills
@@ -96,3 +97,11 @@ The skills assume the `sim` CLI is installed and authenticated. They never store
 
 Workspace sync guidance requires a CLI and server exposing the v2 import-preview and fork sync
 commands. The skill checks command availability before changing resources.
+
+## Releasing
+
+Every merge to `main` that changes the package publishes `sim-skills` to npm with the `latest` tag
+and creates a matching `v<version>` GitHub Release. The publish workflow bumps the patch version
+automatically, so a routine change needs no version edit. For a minor or major release, set the new
+version in `package.json` and run `bun run sync:plugin-version` in the same pull request; CI fails if
+the plugin manifests drift from `package.json`.
